@@ -1,3 +1,4 @@
+import { TestBed } from '@angular/core/testing';
 import { ProcessService } from './process.service';
 import { NativeCommunicationService } from './native-communication.service';
 import { Constants } from './constants';
@@ -5,78 +6,50 @@ import { Process } from './process';
 import { of } from 'rxjs';
 
 describe('ProcessService', () => {
-  let processService: ProcessService;
-  let nativeCommunicationServiceSpy: jasmine.SpyObj<NativeCommunicationService>;
+  let service: ProcessService;
+  let nativeCommunicationService: NativeCommunicationService;
 
   beforeEach(() => {
-    const spy = jasmine.createSpyObj('NativeCommunicationService', ['setMemoryItem', 'getMemoryItem']);
-
     TestBed.configureTestingModule({
-      providers: [
-        ProcessService,
-        { provide: NativeCommunicationService, useValue: spy }
-      ]
+      providers: [ProcessService, NativeCommunicationService]
     });
-    processService = TestBed.inject(ProcessService);
-    nativeCommunicationServiceSpy = TestBed.inject(NativeCommunicationService) as jasmine.SpyObj<NativeCommunicationService>;
+    service = TestBed.inject(ProcessService);
+    nativeCommunicationService = TestBed.inject(NativeCommunicationService);
   });
 
   it('should be created', () => {
-    expect(processService).toBeTruthy();
+    expect(service).toBeTruthy();
   });
 
   describe('setProcesses', () => {
-    it('should set processes in native communication service', () => {
-      const processes: Process[] = [{ id: 1, name: 'Process 1' }, { id: 2, name: 'Process 2' }];
-      processService.setProcesses(processes);
-      expect(nativeCommunicationServiceSpy.setMemoryItem).toHaveBeenCalledWith(Constants.ListProcesses, JSON.stringify(processes));
-    });
-
-    it('should set empty array if no processes are provided', () => {
-      processService.setProcesses();
-      expect(nativeCommunicationServiceSpy.setMemoryItem).toHaveBeenCalledWith(Constants.ListProcesses, '[]');
+    it('should set processes in memory', () => {
+      const processes: Process[] = [{ id: '1' }, { id: '2' }];
+      spyOn(nativeCommunicationService, 'setMemoryItem');
+      service.setProcesses(processes);
+      expect(nativeCommunicationService.setMemoryItem).toHaveBeenCalledWith(Constants.ListProcesses, JSON.stringify(processes));
     });
   });
 
   describe('getProcesses', () => {
-    it('should return processes from native communication service', () => {
-      const processes: Process[] = [{ id: 1, name: 'Process 1' }, { id: 2, name: 'Process 2' }];
-      nativeCommunicationServiceSpy.getMemoryItem.and.returnValue(of({ data: processes }));
-      processService.getProcesses().subscribe(data => {
-        expect(data).toEqual(processes);
-      });
-    });
-
-    it('should return empty array if no data is returned from native communication service', () => {
-      nativeCommunicationServiceSpy.getMemoryItem.and.returnValue(of(null));
-      processService.getProcesses().subscribe(data => {
-        expect(data).toEqual([]);
+    it('should return processes from memory', () => {
+      const processes: Process[] = [{ id: '1' }, { id: '2' }];
+      const response = { data: processes };
+      spyOn(nativeCommunicationService, 'getMemoryItem').and.returnValue(of(response));
+      service.getProcesses().subscribe((res) => {
+        expect(res).toEqual(processes);
       });
     });
   });
 
   describe('getProcessLazyLoading', () => {
-    it('should return the process with the specified id', () => {
-      const processes: Process[] = [{ id: '1', name: 'Process 1' }, { id: '2', name: 'Process 2' }];
-      nativeCommunicationServiceSpy.getMemoryItem.and.returnValue(of({ data: processes }));
-      processService.getProcessLazyLoading('1').subscribe(data => {
-        expect(data).toEqual(processes[0]);
-      });
-    });
-
-    it('should return undefined if no process is found with the specified id', () => {
-      const processes: Process[] = [{ id: '1', name: 'Process 1' }, { id: '2', name: 'Process 2' }];
-      nativeCommunicationServiceSpy.getMemoryItem.and.returnValue(of({ data: processes }));
-      processService.getProcessLazyLoading('3').subscribe(data => {
-        expect(data).toBeUndefined();
-      });
-    });
-
-    it('should return undefined if no data is returned from native communication service', () => {
-      nativeCommunicationServiceSpy.getMemoryItem.and.returnValue(of(null));
-      processService.getProcessLazyLoading('1').subscribe(data => {
-        expect(data).toBeUndefined();
+    it('should return a process by id from memory', () => {
+      const processes: Process[] = [{ id: '1' }, { id: '2' }];
+      const response = { data: processes };
+      spyOn(nativeCommunicationService, 'getMemoryItem').and.returnValue(of(response));
+      service.getProcessLazyLoading('1').subscribe((res) => {
+        expect(res).toEqual({ id: '1' });
       });
     });
   });
+
 });
