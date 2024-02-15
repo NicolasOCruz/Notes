@@ -1,55 +1,65 @@
-import { TestBed } from '@angular/core/testing';
-import { ProcessService } from './process.service';
-import { NativeCommunicationService } from './native-communication.service';
-import { Constants } from './constants';
-import { Process } from './process';
-import { of } from 'rxjs';
-
-describe('ProcessService', () => {
-  let service: ProcessService;
-  let nativeCommunicationService: NativeCommunicationService;
+describe('ContentComponent', () => {
+  let component: ContentComponent;
+  let fixture: ComponentFixture<ContentComponent>;
+  let processService: ProcessService;
+  let activatedRoute: ActivatedRoute;
+  let router: Router;
 
   beforeEach(() => {
     TestBed.configureTestingModule({
-      providers: [ProcessService, NativeCommunicationService]
+      declarations: [ContentComponent],
+      providers: [ProcessService, ActivatedRoute, Router]
     });
-    service = TestBed.inject(ProcessService);
-    nativeCommunicationService = TestBed.inject(NativeCommunicationService);
+    fixture = TestBed.createComponent(ContentComponent);
+    component = fixture.componentInstance;
+    processService = TestBed.inject(ProcessService);
+    activatedRoute = TestBed.inject(ActivatedRoute);
+    router = TestBed.inject(Router);
   });
 
-  it('should be created', () => {
-    expect(service).toBeTruthy();
+  it('should create', () => {
+    expect(component).toBeTruthy();
   });
 
-  describe('setProcesses', () => {
-    it('should set processes in memory', () => {
-      const processes: Process[] = [{ id: '1' }, { id: '2' }];
-      spyOn(nativeCommunicationService, 'setMemoryItem');
-      service.setProcesses(processes);
-      expect(nativeCommunicationService.setMemoryItem).toHaveBeenCalledWith(Constants.ListProcesses, JSON.stringify(processes));
+  describe('ngOnInit', () => {
+    it('should call getProcessLazyLoading with correct process id', () => {
+      const processId = '1';
+      spyOn(activatedRoute.snapshot.paramMap, 'get').and.returnValue(processId);
+      spyOn(processService, 'getProcessLazyLoading').and.returnValue(of({ id: processId }));
+
+      component.ngOnInit();
+
+      expect(processService.getProcessLazyLoading).toHaveBeenCalledWith(processId);
     });
-  });
 
-  describe('getProcesses', () => {
-    it('should return processes from memory', () => {
-      const processes: Process[] = [{ id: '1' }, { id: '2' }];
-      const response = { data: processes };
-      spyOn(nativeCommunicationService, 'getMemoryItem').and.returnValue(of(response));
-      service.getProcesses().subscribe((res) => {
-        expect(res).toEqual(processes);
-      });
-    });
-  });
+    it('should set process with response from getProcessLazyLoading', () => {
+      const mockProcess = { id: '1', name: 'Process 1' };
+      spyOn(activatedRoute.snapshot.paramMap, 'get').and.returnValue(mockProcess.id);
+      spyOn(processService, 'getProcessLazyLoading').and.returnValue(of(mockProcess));
 
-  describe('getProcessLazyLoading', () => {
-    it('should return a process by id from memory', () => {
-      const processes: Process[] = [{ id: '1' }, { id: '2' }];
-      const response = { data: processes };
-      spyOn(nativeCommunicationService, 'getMemoryItem').and.returnValue(of(response));
-      service.getProcessLazyLoading('1').subscribe((res) => {
-        expect(res).toEqual({ id: '1' });
-      });
+      component.ngOnInit();
+
+      expect(component.process).toEqual(mockProcess);
     });
   });
 
+  describe('handleClick', () => {
+    it('should navigate to correct route', () => {
+      const fileId = 'file-id';
+      component.process = { id: '1' } as any;
+      spyOn(router, 'navigate');
+
+      component.handleClick(fileId);
+
+      expect(router.navigate).toHaveBeenCalledWith(['processes', '1', 'contents', fileId, 'files']);
+    });
+
+    it('should not navigate if process is undefined', () => {
+      spyOn(router, 'navigate');
+
+      component.handleClick('file-id');
+
+      expect(router.navigate).not.toHaveBeenCalled();
+    });
+  });
 });
