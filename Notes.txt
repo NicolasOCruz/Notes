@@ -1,65 +1,58 @@
-describe('ContentComponent', () => {
-  let component: ContentComponent;
-  let fixture: ComponentFixture<ContentComponent>;
-  let processService: ProcessService;
-  let activatedRoute: ActivatedRoute;
+import { FileComponent } from './file.component';
+import { Router, ActivatedRoute } from '@angular/router';
+import { TestBed } from '@angular/core/testing';
+
+describe('FileComponent', () => {
+  let component: FileComponent;
   let router: Router;
+  let activateRoute: ActivatedRoute;
 
   beforeEach(() => {
     TestBed.configureTestingModule({
-      declarations: [ContentComponent],
-      providers: [ProcessService, ActivatedRoute, Router]
+      providers: [
+        FileComponent,
+        { provide: Router, useValue: { navigate: jasmine.createSpy('navigate') } },
+        { provide: ActivatedRoute, useValue: {} }
+      ]
     });
-    fixture = TestBed.createComponent(ContentComponent);
-    component = fixture.componentInstance;
-    processService = TestBed.inject(ProcessService);
-    activatedRoute = TestBed.inject(ActivatedRoute);
+    component = TestBed.inject(FileComponent);
     router = TestBed.inject(Router);
+    activateRoute = TestBed.inject(ActivatedRoute);
   });
 
   it('should create', () => {
     expect(component).toBeTruthy();
   });
 
-  describe('ngOnInit', () => {
-    it('should call getProcessLazyLoading with correct process id', () => {
-      const processId = '1';
-      spyOn(activatedRoute.snapshot.paramMap, 'get').and.returnValue(processId);
-      spyOn(processService, 'getProcessLazyLoading').and.returnValue(of({ id: processId }));
-
-      component.ngOnInit();
-
-      expect(processService.getProcessLazyLoading).toHaveBeenCalledWith(processId);
-    });
-
-    it('should set process with response from getProcessLazyLoading', () => {
-      const mockProcess = { id: '1', name: 'Process 1' };
-      spyOn(activatedRoute.snapshot.paramMap, 'get').and.returnValue(mockProcess.id);
-      spyOn(processService, 'getProcessLazyLoading').and.returnValue(of(mockProcess));
-
-      component.ngOnInit();
-
-      expect(component.process).toEqual(mockProcess);
+  describe('handleClick', () => {
+    it('should navigate to correct route', () => {
+      const id = 'file-id';
+      component.handleClick(id);
+      expect(router.navigate).toHaveBeenCalledWith([id], { relativeTo: activateRoute });
     });
   });
 
-  describe('handleClick', () => {
-    it('should navigate to correct route', () => {
-      const fileId = 'file-id';
-      component.process = { id: '1' } as any;
-      spyOn(router, 'navigate');
-
-      component.handleClick(fileId);
-
-      expect(router.navigate).toHaveBeenCalledWith(['processes', '1', 'contents', fileId, 'files']);
+  describe('dates', () => {
+    it('should return keys of groupedFiles', () => {
+      spyOnProperty(component, 'groupedFiles', 'get').and.returnValue({ key1: [], key2: [] });
+      expect(component.dates).toEqual(['key1', 'key2']);
     });
+  });
 
-    it('should not navigate if process is undefined', () => {
-      spyOn(router, 'navigate');
+  describe('groupedFiles', () => {
+    it('should group files by created_at', () => {
+      component.content = {
+        files: [
+          { id: '1', created_at: '2022-02-20' },
+          { id: '2', created_at: '2022-02-21' },
+          { id: '3', created_at: '2022-02-20' }
+        ]
+      } as any;
 
-      component.handleClick('file-id');
-
-      expect(router.navigate).not.toHaveBeenCalled();
+      expect(component.groupedFiles).toEqual({
+        '2022-02-20': [{ id: '1', created_at: '2022-02-20' }, { id: '3', created_at: '2022-02-20' }],
+        '2022-02-21': [{ id: '2', created_at: '2022-02-21' }]
+      });
     });
   });
 });
