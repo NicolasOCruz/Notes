@@ -1,35 +1,6 @@
-import { Component } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
-import { map } from 'rxjs/operators';
-
-@Component({
-  selector: 'app-pdf-viewer',
-  template: `
-    <pdf-viewer [src]="pdfSrc" [externalWindow]="true"></pdf-viewer>
-  `,
-  styles: []
-})
-export class PdfViewerComponent {
-  pdfSrc: any;
-
-  constructor(private http: HttpClient) {
-    this.loadPdf();
-  }
-
-  loadPdf() {
-    const base64pdf = 'base64_data_here'; // Seu base64 do PDF aqui
-    const byteCharacters = atob(base64pdf);
-    const byteNumbers = new Array(byteCharacters.length);
-    for (let i = 0; i < byteCharacters.length; i++) {
-      byteNumbers[i] = byteCharacters.charCodeAt(i);
-    }
-    const byteArray = new Uint8Array(byteNumbers);
-    const blob = new Blob([byteArray], { type: 'application/pdf' });
-
-    const fileReader = new FileReader();
-    fileReader.onloadend = () => {
-      this.pdfSrc = fileReader.result;
-    };
-    fileReader.readAsDataURL(blob);
-  }
-}
+<div class="d-flex justify-content-center">
+                <a class="mr-1" style="cursor:pointer;" (click)="incrementPage(-1)"><i class="fa fa-backward"></i>Previous</a>
+                <input style="width: 60px;" [(ngModel)]="pagePDF" [value]="pagePDF" type="number"
+                       pattern="-?[0-9]*(\.[0-9]+)?">
+                <a class="ml-1" style="cursor:pointer;" (click)="incrementPage(1)"><i class="fa fa-forward"></i>Next</a>
+            </div>
