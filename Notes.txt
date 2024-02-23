@@ -1,19 +1,9 @@
-import { Injectable } from '@angular/core';
-import { NativeService } from './native.service';
-import { NativeServiceMock } from './native.service.mock';
-import { environment } from 'src/environments/environment';
-
-@Injectable({
-  providedIn: 'root'
-})
-export class NativeServiceFactory {
-
-  constructor(
-    private nativeService: NativeService,
-    private nativeServiceMock: NativeServiceMock
-  ) {}
-
-  getService(): NativeService | NativeServiceMock {
-    return environment.mockIntegrated ? this.nativeServiceMock : this.nativeService;
-  }
-}
+providers: [
+    {
+      provide: NativeService,
+      useFactory: (env: any) => {
+        return env.mockSdk ? new NativeServiceMock() : new NativeServiceProd();
+      },
+      deps: [environment]
+    }
+  ],
