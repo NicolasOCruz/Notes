@@ -4,15 +4,16 @@ import { NativeServiceMock } from './native.service.mock';
 import { environment } from 'src/environments/environment';
 
 @Injectable({
-  providedIn: 'root',
-  useFactory: (nativeService: NativeService, nativeServiceMock: NativeServiceMock) => {
-    return environment.mockIntegrated ? nativeServiceMock : nativeService;
-  },
-  deps: [NativeService, NativeServiceMock]
+  providedIn: 'root'
 })
-export function provideNativeService(
-  nativeService: NativeService,
-  nativeServiceMock: NativeServiceMock
-) {
-  return environment.mockIntegrated ? nativeServiceMock : nativeService;
+export class NativeServiceFactory {
+
+  constructor(
+    private nativeService: NativeService,
+    private nativeServiceMock: NativeServiceMock
+  ) {}
+
+  getService(): NativeService | NativeServiceMock {
+    return environment.mockIntegrated ? this.nativeServiceMock : this.nativeService;
+  }
 }
