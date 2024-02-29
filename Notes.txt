@@ -1,9 +1,1 @@
-providers: [
-    {
-      provide: NativeService,
-      useFactory: (env: any) => {
-        return env.mockSdk ? new NativeServiceMock() : new NativeServiceProd();
-      },
-      deps: [environment]
-    }
-  ],
+NEW
