@@ -1,9 +1,18 @@
-providers: [
-    {
-      provide: NativeService,
-      useFactory: (env: any) => {
-        return env.mockSdk ? new NativeServiceMock() : new NativeServiceProd();
-      },
-      deps: [environment]
-    }
-  ],
+function downloadPdfFromBase64(base64String, filename) {
+  const byteCharacters = atob(base64String);
+  const byteNumbers = new Array(byteCharacters.length);
+  for (let i = 0; i < byteCharacters.length; i++) {
+    byteNumbers[i] = byteCharacters.charCodeAt(i);
+  }
+  const byteArray = new Uint8Array(byteNumbers);
+  const blob = new Blob([byteArray], { type: 'application/pdf' });
+  const url = URL.createObjectURL(blob);
+
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  window.URL.revokeObjectURL(url);
+  document.body.removeChild(a);
+}
