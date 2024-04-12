@@ -1,0 +1,59 @@
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@AutoConfigureMockMvc
+class AuthorizationControllerIntegrationTest {
+
+    @Autowired
+    private MockMvc mockMvc;
+
+    @Autowired
+    private ObjectMapper objectMapper;
+
+    @MockBean
+    private AuthorizationService authorizationService;
+
+    @Test
+    void generateToken_ValidRequest_ReturnsToken() throws Exception {
+        // Arrange
+        RequestTokenDTO requestTokenDTO = new RequestTokenDTO();
+        requestTokenDTO.setUserId("user123");
+
+        BffResponse<Object> expectedResponse = new BffResponse<>();
+        expectedResponse.setCode("200");
+        expectedResponse.setMessage("Token generated successfully");
+        expectedResponse.setData("token123");
+
+        given(authorizationService.enrickToken(requestTokenDTO)).willReturn(expectedResponse);
+
+        // Act
+        MvcResult result = mockMvc.perform(post("/authorize/generate-token")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(requestTokenDTO)))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        // Assert
+        String responseContent = result.getResponse().getContentAsString();
+        BffResponse<Object> actualResponse = objectMapper.readValue(responseContent, new TypeReference<BffResponse<Object>>() {});
+        assertEquals(expectedResponse, actualResponse);
+    }
+
+    @Test
+    void generateToken_InvalidRequest_ReturnsError() throws Exception {
+        // Arrange
+        RequestTokenDTO requestTokenDTO = new RequestTokenDTO(); // invalid request without user id
+
+        // Act
+        MvcResult result = mockMvc.perform(post("/authorize/generate-token")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(requestTokenDTO)))
+                .andExpect(status().isBadRequest())
+                .andReturn();
+
+        // Assert
+        String responseContent = result.getResponse().getContentAsString();
+        BffResponse<Object> actualResponse = objectMapper.readValue(responseContent, new TypeReference<BffResponse<Object>>() {});
+        assertNotNull(actualResponse);
+        assertEquals("400", actualResponse.getCode());
+        assertEquals("Invalid request", actualResponse.getMessage());
+    }
+}
