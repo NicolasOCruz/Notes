@@ -1,59 +1,213 @@
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-@AutoConfigureMockMvc
-class AuthorizationControllerIntegrationTest {
+package br.com.ibliss.core.rest;
 
-    @Autowired
-    private MockMvc mockMvc;
+import br.com.ibliss.basic.entity.core.Profile;
+import br.com.ibliss.basic.filter.ProfileFilter;
+import br.com.ibliss.basic.model.RequestDTO;
+import br.com.ibliss.basic.service.core.ProfileService;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.bson.types.ObjectId;
+import org.junit.Before;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.MockitoJUnitRunner;
+import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
-    @Autowired
-    private ObjectMapper objectMapper;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+
+import static org.hamcrest.Matchers.hasSize;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.mockito.Mockito.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+
+@RunWith(MockitoJUnitRunner.Silent.class)
+@WebMvcTest(controllers = ProfileResource.class)
+@ActiveProfiles("test")
+public class ProfileResourceTest {
+
+    @InjectMocks
+    private ProfileResource profileResource;
+
+    @Mock
+    private ProfileService profileService;
 
     @MockBean
-    private AuthorizationService authorizationService;
+    private MockMvc mockMvc;
 
-    @Test
-    void generateToken_ValidRequest_ReturnsToken() throws Exception {
-        // Arrange
-        RequestTokenDTO requestTokenDTO = new RequestTokenDTO();
-        requestTokenDTO.setUserId("user123");
+    private static final String BASE_URL = "/profile";
+    private ObjectMapper mapper;
 
-        BffResponse<Object> expectedResponse = new BffResponse<>();
-        expectedResponse.setCode("200");
-        expectedResponse.setMessage("Token generated successfully");
-        expectedResponse.setData("token123");
-
-        given(authorizationService.enrickToken(requestTokenDTO)).willReturn(expectedResponse);
-
-        // Act
-        MvcResult result = mockMvc.perform(post("/authorize/generate-token")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(requestTokenDTO)))
-                .andExpect(status().isOk())
-                .andReturn();
-
-        // Assert
-        String responseContent = result.getResponse().getContentAsString();
-        BffResponse<Object> actualResponse = objectMapper.readValue(responseContent, new TypeReference<BffResponse<Object>>() {});
-        assertEquals(expectedResponse, actualResponse);
+    @Before
+    public void setUp() {
+        mapper = new ObjectMapper();
+        mockMvc = MockMvcBuilders
+                .standaloneSetup(profileResource)
+                .build();
     }
 
     @Test
-    void generateToken_InvalidRequest_ReturnsError() throws Exception {
-        // Arrange
-        RequestTokenDTO requestTokenDTO = new RequestTokenDTO(); // invalid request without user id
+    public void shouldCreateProfile() throws Exception {
+        Profile profile = getProfile();
 
-        // Act
-        MvcResult result = mockMvc.perform(post("/authorize/generate-token")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(requestTokenDTO)))
-                .andExpect(status().isBadRequest())
-                .andReturn();
+        when(profileService.create(profile)).thenReturn(profile);
 
-        // Assert
-        String responseContent = result.getResponse().getContentAsString();
-        BffResponse<Object> actualResponse = objectMapper.readValue(responseContent, new TypeReference<BffResponse<Object>>() {});
-        assertNotNull(actualResponse);
-        assertEquals("400", actualResponse.getCode());
-        assertEquals("Invalid request", actualResponse.getMessage());
+        ResponseEntity<?> returned = profileResource.create(profile);
+        mockMvc.perform(put(BASE_URL)
+                        .content(mapper.writeValueAsString(profile))
+                        .contentType(MediaType.APPLICATION_JSON_VALUE))
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON_UTF8_VALUE))
+                .andExpect(status().isOk());
+
+        verify(profileService, atLeastOnce()).create(profile);
+
+        assertNotNull(returned.getBody());
+    }
+
+    @Test
+    public void shouldUpdateProfile() throws Exception {
+        Profile profile = getProfile();
+
+        when(profileService.update(profile)).thenReturn(profile);
+
+        ResponseEntity<?> returned = profileResource.update(profile);
+        mockMvc.perform(put(BASE_URL + "/edit")
+                        .content(mapper.writeValueAsString(profile))
+                        .contentType(MediaType.APPLICATION_JSON_VALUE))
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON_UTF8_VALUE))
+                .andExpect(status().isOk());
+
+        verify(profileService, atLeastOnce()).update(profile);
+
+        assertNotNull(returned.getBody());
+    }
+
+    @Test
+    public void shouldRemoveProfile() throws Exception {
+        ObjectId objectId = new ObjectId("5aa803c7477e5203c51fe85b");
+
+        doNothing().when(profileService).remove(objectId);
+
+        profileResource.remove(objectId.toString());
+        mockMvc.perform(delete(BASE_URL + "?id=" + objectId)
+                        .contentType(MediaType.APPLICATION_JSON_VALUE))
+                .andExpect(status().isOk());
+
+        verify(profileService, atLeastOnce()).remove(objectId);
+    }
+
+    @Test
+    public void shouldRemoveAllProfiles() throws Exception {
+        ObjectId objectId = new ObjectId("5aa803c7477e5203c51fe85b");
+        ObjectId objectId2 = new ObjectId("6bb803c7477e5203c51ff96c");
+
+        List<ObjectId> objectIdList = new ArrayList<>();
+        objectIdList.add(objectId2);
+        objectIdList.add(objectId);
+
+        RequestDTO dto = new RequestDTO();
+        dto.setId(objectIdList);
+
+        doNothing().when(profileService).removeAll(objectIdList);
+
+        profileResource.removeAll(dto);
+        mockMvc.perform(delete(BASE_URL + "/removeAllSelect")
+                        .content(mapper.writeValueAsString(dto))
+                        .contentType(MediaType.APPLICATION_JSON_VALUE))
+                .andExpect(status().isOk());
+
+        verify(profileService, atLeastOnce()).removeAll(objectIdList);
+    }
+
+    @Test
+    public void shouldListAllProfiles() throws Exception {
+        List<Profile> profileList = Arrays.asList(getProfile(), getProfile());
+
+        when(profileService.list()).thenReturn(profileList);
+
+        ResponseEntity<?> returned = profileResource.list();
+        mockMvc.perform(get(BASE_URL)
+                        .contentType(MediaType.APPLICATION_JSON_VALUE))
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON_UTF8_VALUE))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isArray())
+                .andExpect(jsonPath("$", hasSize(profileList.size())));
+
+        verify(profileService, atLeastOnce()).list();
+
+        assertNotNull(returned.getBody());
+    }
+
+    @Test
+    public void shouldFindById() throws Exception {
+        Profile profile = getProfile();
+        String id = "5aa803c7477e5203c51fe85b";
+
+        when(profileService.find(any())).thenReturn(profile);
+
+        ResponseEntity<?> returned = profileResource.findById(id);
+        mockMvc.perform(get(BASE_URL + "?id=" + id)
+                        .contentType(MediaType.APPLICATION_JSON_VALUE))
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON_UTF8_VALUE))
+                .andExpect(status().isOk());
+        verify(profileService, atLeastOnce()).find(new ObjectId(id));
+
+        assertNotNull(returned.getBody());
+    }
+
+    @Test
+    public void shouldFindByFilter() throws Exception {
+        ProfileFilter filter = new ProfileFilter();
+        List<Profile> profileList = Arrays.asList(getProfile(), getProfile());
+
+        when(profileService.findByFilter(any(ProfileFilter.class))).thenReturn(profileList);
+
+        ResponseEntity<?> returned = profileResource.findByFilter(filter);
+
+        mockMvc.perform(post(BASE_URL + "/find-by-filter")
+                        .content(mapper.writeValueAsString(filter))
+                        .contentType(MediaType.APPLICATION_JSON_VALUE))
+                .andExpect(jsonPath("$").isArray())
+                .andExpect(jsonPath("$", hasSize(profileList.size())))
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON_UTF8_VALUE))
+                .andExpect(status().isOk());
+        verify(profileService, atLeastOnce()).findByFilter(filter);
+
+        assertNotNull(returned.getBody());
+
+    }
+
+    @Test
+    public void shouldCountByFilter() throws Exception {
+        ProfileFilter filter = new ProfileFilter();
+        Integer total = 5;
+
+        when(profileService.countByFilter(any(ProfileFilter.class))).thenReturn(total);
+
+        ResponseEntity<?> returned = profileResource.countByFilter(filter);
+
+        mockMvc.perform(post(BASE_URL + "/count-by-filter")
+                        .content(mapper.writeValueAsString(filter))
+                        .contentType(MediaType.APPLICATION_JSON_VALUE))
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON_UTF8_VALUE))
+                .andExpect(status().isOk());
+        verify(profileService, atLeastOnce()).countByFilter(filter);
+
+        assertNotNull(returned.getBody());
+        assertEquals("Total retornado não corresponde ao total do filtro", returned.getBody(), total);
+    }
+
+    private Profile getProfile() {
+        return new Profile();
     }
 }
