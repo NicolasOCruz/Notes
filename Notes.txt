@@ -1,31 +1,28 @@
-@Aspect
 @Component
-public class SensitiveDataAspect {
+public class SensitiveDataMasker {
 
-    @Around("execution(public String *.toString()) && @target(sensitiveData)")
-    public Object maskToString(ProceedingJoinPoint joinPoint, SensitiveData sensitiveData) throws Throwable {
-        Object target = joinPoint.getTarget();
+    public String maskSensitiveData(Object target) {
         Field[] fields = target.getClass().getDeclaredFields();
 
         for (Field field : fields) {
             if (field.isAnnotationPresent(SensitiveData.class)) {
                 SensitiveData annotation = field.getAnnotation(SensitiveData.class);
                 field.setAccessible(true);
-                Object value = field.get(target);
-                if (value instanceof String) {
-                    field.set(target, maskValue((String) value, annotation));
+                try {
+                    Object value = field.get(target);
+                    if (value instanceof String) {
+                        field.set(target, maskValue((String) value, annotation));
+                    }
+                } catch (IllegalAccessException e) {
+                    // Handle exception
                 }
             }
         }
 
-        return joinPoint.proceed();
+        return target.toString();
     }
 
     private String maskValue(String value, SensitiveData annotation) {
-        if (value == null) {
-            return null;
-        }
-
         int start = annotation.start();
         int end = annotation.end();
         char maskChar = annotation.maskChar();
