@@ -1,41 +1,48 @@
+@Aspect
 @Component
-public class MaskSensitiveValidator implements ConstraintValidator<MaskSensitiveConstraint, String> {
+public class MaskedAspect {
 
-    private int startPos;
-    private int endPos;
-    private char maskChar;
+    @Around("execution(public String *.toString()) && @target(masked)")
+    public Object maskToString(ProceedingJoinPoint joinPoint, Masked masked) throws Throwable {
+        Object target = joinPoint.getTarget();
+        Field[] fields = target.getClass().getDeclaredFields();
 
-    @Override
-    public void initialize(MaskSensitiveConstraint constraint) {
-        this.startPos = constraint.startPos();
-        this.endPos = constraint.endPos();
-        this.maskChar = constraint.maskChar();
-    }
-
-    @Override
-    public boolean isValid(String value, ConstraintValidatorContext context) {
-        if (value == null) {
-            return true;
-        }
-
-        String maskedValue = maskSensitiveString(value);
-        context.disableCustomValidation();
-        context.buildConstraintViolationBuilder(value).addConstraintViolation();
-        context.enableCustomValidation();
-
-        return value.equals(maskedValue);
-    }
-
-    private String maskSensitiveString(String value) {
-        StringBuilder maskedValue = new StringBuilder();
-        for (int i = 0; i < value.length(); i++) {
-            if (i >= startPos && i <= endPos) {
-                maskedValue.append(maskChar);
-            } else {
-                maskedValue.append(value.charAt(i));
+        for (Field field : fields) {
+            if (field.isAnnotationPresent(Masked.class)) {
+                Masked annotation = field.getAnnotation(Masked.class);
+                field.setAccessible(true);
+                Object value = field.get(target);
+                if (value instanceof String) {
+                    field.set(target, maskValue((String) value, annotation));
+                }
             }
         }
 
-        return maskedValue.toString();
+        return joinPoint.proceed();
+    }
+
+    private String maskValue(String value, Masked annotation) {
+        if (value == null) {
+            return null;
+        }
+
+        int start = annotation.start();
+        int end = annotation.end();
+        char maskChar = annotation.maskChar();
+
+        if (end < 0 || end >= value.length()) {
+            end = value.length();
+        }
+
+        if (start < 0 || start >= end) {
+            start = 0;
+        }
+
+        int length = end - start;
+        String maskedValue = value.substring(0, start);
+        maskedValue += String.valueOf(maskChar).repeat(Math.max(0, length));
+        maskedValue += value.substring(end);
+
+        return maskedValue;
     }
 }
