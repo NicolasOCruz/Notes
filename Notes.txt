@@ -1,16 +1,32 @@
-public String maskSensitive(Object value, MaskSensitive maskSensitive) {
-        if (value instanceof String) {
-            return maskSensitiveString((String) value, maskSensitive);
-        } else {
-            return value.toString();
-        }
+@Component
+public class MaskSensitiveValidator implements ConstraintValidator<MaskSensitiveConstraint, String> {
+
+    private int startPos;
+    private int endPos;
+    private char maskChar;
+
+    @Override
+    public void initialize(MaskSensitiveConstraint constraint) {
+        this.startPos = constraint.startPos();
+        this.endPos = constraint.endPos();
+        this.maskChar = constraint.maskChar();
     }
 
-    private String maskSensitiveString(String value, MaskSensitive maskSensitive) {
-        int startPos = maskSensitive.startPos();
-        int endPos = maskSensitive.endPos();
-        char maskChar = maskSensitive.maskChar();
+    @Override
+    public boolean isValid(String value, ConstraintValidatorContext context) {
+        if (value == null) {
+            return true;
+        }
 
+        String maskedValue = maskSensitiveString(value);
+        context.disableCustomValidation();
+        context.buildConstraintViolationBuilder(value).addConstraintViolation();
+        context.enableCustomValidation();
+
+        return value.equals(maskedValue);
+    }
+
+    private String maskSensitiveString(String value) {
         StringBuilder maskedValue = new StringBuilder();
         for (int i = 0; i < value.length(); i++) {
             if (i >= startPos && i <= endPos) {
@@ -22,3 +38,4 @@ public String maskSensitive(Object value, MaskSensitive maskSensitive) {
 
         return maskedValue.toString();
     }
+}
