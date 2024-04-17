@@ -1,15 +1,15 @@
 @Aspect
 @Component
-public class MaskedAspect {
+public class SensitiveDataAspect {
 
-    @Around("execution(public String *.toString()) && @target(masked)")
-    public Object maskToString(ProceedingJoinPoint joinPoint, Masked masked) throws Throwable {
+    @Around("execution(public String *.toString()) && @target(sensitiveData)")
+    public Object maskToString(ProceedingJoinPoint joinPoint, SensitiveData sensitiveData) throws Throwable {
         Object target = joinPoint.getTarget();
         Field[] fields = target.getClass().getDeclaredFields();
 
         for (Field field : fields) {
-            if (field.isAnnotationPresent(Masked.class)) {
-                Masked annotation = field.getAnnotation(Masked.class);
+            if (field.isAnnotationPresent(SensitiveData.class)) {
+                SensitiveData annotation = field.getAnnotation(SensitiveData.class);
                 field.setAccessible(true);
                 Object value = field.get(target);
                 if (value instanceof String) {
@@ -21,7 +21,7 @@ public class MaskedAspect {
         return joinPoint.proceed();
     }
 
-    private String maskValue(String value, Masked annotation) {
+    private String maskValue(String value, SensitiveData annotation) {
         if (value == null) {
             return null;
         }
